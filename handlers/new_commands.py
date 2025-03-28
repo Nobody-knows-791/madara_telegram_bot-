@@ -511,12 +511,10 @@ async def handle_filters(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     message = update.message
     
     if chat is None or message is None:
-        logger.info("No chat or message found, skipping filter check.")
-        return
+        return  # Silently skip if no chat/message
 
     if chat.type not in ["group", "supergroup"]:
-        logger.info(f"Chat {chat.id} is not a group or supergroup, skipping.")
-        return
+        return  # Silently skip non-group chats
 
     content = ""
     if message.text:
@@ -529,23 +527,26 @@ async def handle_filters(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         content = "gif"
 
     if not content:
-        logger.info(f"No filterable content in message {message.message_id}, skipping.")
-        return
+        return  # Silently skip if no filterable content
 
     filters_collection = get_filters_collection()
-    filters = list(filters_collection.find({"chat_id": chat.id}))  # Use int chat_id
-    logger.info(f"Found {len(filters)} filters for chat {chat.id}: {[f['trigger'] for f in filters]}")
+    filters = list(filters_collection.find({"chat_id": chat.id}))
+
+    # Only log if there are filters to check
+    if filters:
+        logger.debug(f"Checking {len(filters)} filters for chat {chat.id}: {[f['trigger'] for f in filters]}")
+    else:
+        return  # No filters, no need to log or proceed
 
     for filter_doc in filters:
         trigger = filter_doc["trigger"]
-        logger.info(f"Checking trigger '{trigger}' against content '{content}'")
         if trigger in content:
             response = filter_doc["response"]
-            # Skip if response is "No text to filter" or empty
+            # Skip invalid/empty responses
             if not response or response.strip().lower() == "no text to filter":
-                logger.info(f"Skipping invalid or empty response for trigger '{trigger}'")
+                logger.debug(f"Skipping empty/invalid response for trigger '{trigger}' in chat {chat.id}")
                 continue
-            logger.info(f"Trigger '{trigger}' matched, responding with: {response}")
+            logger.info(f"Trigger '{trigger}' matched in chat {chat.id}, responding with: {response}")
             try:
                 if "Sticker:" in response:
                     await message.reply_sticker(response.split("Sticker: ")[1])
@@ -554,7 +555,7 @@ async def handle_filters(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 else:
                     await message.reply_text(response)
             except telegram.error.RetryAfter as e:
-                logger.warning(f"Flood control exceeded. Retry in {e.retry_after} seconds.")
+                logger.warning(f"Flood control exceeded in chat {chat.id}. Retry in {e.retry_after} seconds.")
                 await asyncio.sleep(e.retry_after)
                 if "Sticker:" in response:
                     await message.reply_sticker(response.split("Sticker: ")[1])
@@ -563,7 +564,8 @@ async def handle_filters(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 else:
                     await message.reply_text(response)
             except Exception as e:
-                logger.error(f"Error sending filter response: {e}")
-            return  # Exit after first valid match
+                logger.error(f"Error sending filter response in chat {chat.id}: {e}")
+            return  # Exit after first match
 
-    logger.info(f"No valid filters matched for content '{content}' in chat {chat.id}, skipping response.")
+    # Log only at debug level if no match
+    logger.debug(f"No filters matched for content '{content}' in chat {chat.id}")

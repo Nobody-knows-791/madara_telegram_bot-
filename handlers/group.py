@@ -111,36 +111,59 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
     for member in new_members:
         photos = await context.bot.get_user_profile_photos(member.id, limit=1)
         member_link = f"tg://user?id={member.id}"
-        first_name_safe = member.first_name.replace("[", "\\[").replace("]", "\\]")
+        # Escape all Markdown special chars
+        first_name_safe = member.first_name.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]").replace("`", "\\`")
+        chat_title_safe = chat.title.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]").replace("`", "\\`")
         username_safe = member.username if member.username else "N/A"
         welcome_text = (
             f"┏━━━━━━━━━━━━━━━━⧫\n"
-            f"┠●🎉нєу вυ∂∂у ωєℓ¢σмє🌀🌸 \n" 
+            f"┠● 🎉 нєу вυ∂∂у ωєℓ¢σмє 🌀🌸\n" 
             f"┠● {first_name_safe} ʜᴀs ᴊᴏɪɴᴇᴅ ᴛʜᴇ ᴡᴏʀʟᴅ 🎉\n"
-            f"┠● 🫧*{chat.title}*! 🌟\n"
-            f"┠●👤 ғɪʀsᴛ ɴᴀᴍᴇ: [{first_name_safe}]({member_link})\n"
-            f"┠●📛 ᴜsᴇʀɴᴀᴍᴇ: @{username_safe}\n"
-            f"┠●🆔 ɪᴅ: {member.id}\n"
-            f"┠● ʟᴇᴛs ᴍᴀᴋᴇ ᴀ ɢᴏᴏᴅ ᴇɴᴠɪʀᴏɴᴍᴇɴᴛ, \n"
+            f"┠● 🫧 *{chat_title_safe}* 🌟\n"
+            f"┠● 👤 ғɪʀsᴛ ɴᴀᴍᴇ: [{first_name_safe}]({member_link})\n"
+            f"┠● 📛 ᴜsᴇʀɴᴀᴍᴇ: @{username_safe}\n"
+            f"┠● 🆔 ɪᴅ: {member.id}\n"
+            f"┠● ʟᴇᴛs ᴍᴀᴋᴇ ᴀ ɢᴏᴏᴅ ᴇɴᴠɪʀᴏɴᴍᴇɴᴛ,\n"
             f"┠● ғᴏʟʟᴏᴡ ᴛʜᴇ ʀᴜʟᴇs 🔽 ☘️\n"
             f"┗━━━━━━━━━━━━━━━━⧫"
         )
         keyboard = [[InlineKeyboardButton("📜 ɢʀᴏᴜᴘ ʀᴜʟᴇs", url="https://t.me/RULES_FOR_GROUPS_791/3")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        if photos.photos:
-            await context.bot.send_photo(
-                chat_id=chat.id,
-                photo=photos.photos[0][-1].file_id,
-                caption=welcome_text,
-                parse_mode="Markdown",
-                reply_markup=reply_markup
+        try:
+            if photos.photos:
+                await context.bot.send_photo(
+                    chat_id=chat.id,
+                    photo=photos.photos[0][-1].file_id,
+                    caption=welcome_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=chat.id,
+                    text=welcome_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+        except TelegramError as e:
+            logger.error(f"Failed to send welcome message for {member.id} in {chat.id}: {e}")
+            # Fallback to plain text if Markdown fails
+            welcome_text_plain = (
+                f"┏━━━━━━━━━━━━━━━━⧫\n"
+                f"┠● 🎉 Hey buddy welcome 🌀🌸\n" 
+                f"┠● {member.first_name} has joined the world 🎉\n"
+                f"┠● 🫧 {chat.title} 🌟\n"
+                f"┠● 👤 First name: {member.first_name}\n"
+                f"┠● 📛 Username: @{username_safe}\n"
+                f"┠● 🆔 ID: {member.id}\n"
+                f"┠● Lets make a good environment,\n"
+                f"┠● Follow the rules 🔽 ☘️\n"
+                f"┗━━━━━━━━━━━━━━━━⧫"
             )
-        else:
             await context.bot.send_message(
                 chat_id=chat.id,
-                text=welcome_text,
-                parse_mode="Markdown",
+                text=welcome_text_plain,
                 reply_markup=reply_markup
             )
 
