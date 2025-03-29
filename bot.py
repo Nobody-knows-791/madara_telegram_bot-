@@ -23,7 +23,7 @@ from handlers.group import (
 from handlers.fun import register_fun_handlers
 from handlers.new_commands import (
     couple_command, whisper_inline, fonts_command, font_callback, filter_command, handle_filters,
-    stop_command, filterlist_command, paste_command, del_command  # Added del_command
+    stop_command, filterlist_command, paste_command  # Removed font_copy_callback
 )
 
 logging.basicConfig(
@@ -38,7 +38,6 @@ def register_handlers(application):
     application.add_handler(CommandHandler("start", start, filters=filters.ChatType.PRIVATE))
     application.add_handler(CommandHandler("start", start, filters=filters.ChatType.GROUPS))
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("del", del_command))
     application.add_handler(CommandHandler("photo", get_user_info))
     application.add_handler(CommandHandler("info", info_command))
     application.add_handler(CommandHandler("stat", stat_command))
@@ -115,4 +114,4 @@ def main() -> None:
 
 if __name__ == '__main__':
     logger.info("Bot script initiated.")
-    main()
+    main() 
